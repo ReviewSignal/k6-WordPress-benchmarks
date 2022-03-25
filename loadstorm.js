@@ -4,7 +4,7 @@ import { Rate, Trend, Counter } from 'k6/metrics'
 import {parseHTML} from "k6/html";
 
 import { rand, sample, wpMetrics, wpSitemap, responseWasCached, bypassPageCacheCookies, findNewAssets, findAssets, filterAssets, filterAssetsArray, createBatchArrayFromURLArray, removeAuthorCategoryLinks, debugObject, generateUsername } from './lib/helpers.js'
-import { isOK, wpIsNotLogin, isWPLoginOK } from './lib/checks.js'
+import { isOK, wpIsNotLogin } from './lib/checks.js'
 import _ from 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'
 
 
