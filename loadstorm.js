@@ -244,7 +244,8 @@ export default function (data) {
                     referer: `${siteUrl}${data.wplogin}`, //you must pass a referer, otherwise it breaks, doesn't matter what you send it seems though
             }
         }
-        let customParams = _.merge(customParams, data.params, loginHeaders);
+        
+        const customParams = _.merge({}, data.params, loginHeaders);
 
         let user = generateUsername(data.username, data.usernameRange.start, data.usernameRange.end)
 
