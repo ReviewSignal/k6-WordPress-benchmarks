@@ -11,11 +11,36 @@ import _ from 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.m
 export const options = {
     vus: 1,
     duration: '60s',
+    /*
+    // vus, duration - can be replaced with stages
+    // the following mimics old Load Storm test
+    // it ramps up to target over 20 minutes
+    // then holds at peak (target) for 10 minutes
+    stages: [
+        { duration: '20m', target: 1000 }, // simulate ramp-up of traffic from 1 to 1000 users over 20 minutes.
+        { duration: '10m', target: 1000 }, // stay at max load for 10 minutes
+    ],
+    */
     ext: {
         //for running k6.io cloud tests
         loadimpact: {
             projectID: 123456789,//put your project ID for k6 here
             name: "loadstorm test" //test name, tests with the same name group together
+            /*
+            //Optional Geo-Distribution of load test for cloud execution
+            distribution: {
+                Virginia: { loadZone: 'amazon:us:ashburn', percent: 10 },
+                London: { loadZone: 'amazon:gb:london', percent: 10 },
+                Frankfurt: { loadZone: 'amazon:de:frankfurt', percent: 10 },
+                Oregon: { loadZone: 'amazon:us:portland', percent: 10 },
+                Ohio: { loadZone: 'amazon:us:columbus', percent: 10 },
+                Tokyo: { loadZone: 'amazon:jp:tokyo', percent: 10 },
+                Sydney: { loadZone: 'amazon:au:sydney', percent: 10 },
+                Mumbai: { loadZone: 'amazon:in:mumbai', percent: 10 },
+                Singapore: { loadZone: 'amazon:sg:singapore', percent: 10 },
+                Brazil: { loadZone: 'amazon:br:sao paulo', percent: 10 },
+            },
+            */
         }
     }
 }
@@ -233,6 +258,7 @@ export default function (data) {
                 rememberme: 'forever',
                 'wp-submit': 'Log+In',
                 redirect_to: `${vars['redirect_to']}`,
+                //redirect_to: `${siteUrl}wp-admin/`, //sometimes the value doesn't work and we hard code (anything seems to actually work here oddly)
                 testcookie: `${vars['testcookie']}`,
             },
             customParams
