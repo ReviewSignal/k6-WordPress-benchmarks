@@ -23,13 +23,18 @@ export const options = {
 //setup executes once at the start and passes data to the main function (default) which a VUser executes
 export function setup () {
     //get siteurl from command line parameter
-    const siteUrl = __ENV.SITE_URL
+    let siteUrl = __ENV.SITE_URL
     if(siteUrl == undefined) {
         throw new Error("Missing SITE_URL variable")
     }
+    //make sure we have trailing slash on the url
+    const lastChar = siteUrl.substr(-1);
+    if (lastChar != '/') {
+       siteUrl = siteUrl + '/';
+    }
 
     //get sitemap of the site to browse
-    let sitemap = wpSitemap(`${siteUrl}/wp-sitemap.xml`)
+    let sitemap = wpSitemap(`${siteUrl}wp-sitemap.xml`)
     //filter Author / Category links leaving only posts/pages by default
     sitemap = removeAuthorCategoryLinks(sitemap.urls)
 
