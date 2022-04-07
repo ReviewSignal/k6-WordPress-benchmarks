@@ -241,7 +241,7 @@ export default function (data) {
         const loginHeaders = {
             headers: {
                     'content-type': 'application/x-www-form-urlencoded',
-                    referer: `${siteUrl}${data.wplogin}`,
+                    referer: `${siteUrl}${data.wplogin}`, //you must pass a referer, otherwise it breaks, doesn't matter what you send it seems though
             }
         }
         let customParams = _.merge(customParams, data.params, loginHeaders);
