@@ -39,7 +39,10 @@ export let options = {
 
 export default function () {
   let params = {
-    headers: { 'X-CustomHeader': '1' },
+    headers: { 
+      'X-CustomHeader': '1',
+      "accept-encoding": "gzip, br, deflate",
+    },
   };
   let res = http.get('https://example.com', params)
 

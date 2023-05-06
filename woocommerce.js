@@ -112,7 +112,10 @@ export function setup () {
 
     //setup parameters to be sent with every request, eg. custom header and cookie jar
     const globalParams = {
-        headers: { 'CustomHeader': 'NotADDoS' },
+        headers: { 
+            'CustomHeader': 'NotADDoS',
+            "accept-encoding": "gzip, br, deflate",
+        },
         jar: {jar},
     };
 
