@@ -85,7 +85,7 @@ export function setup () {
 
     const wpLogin = 'wp-login.php';
 
-    const domainFilter = ['gravatar.com'];
+    const domainFilter = ['gravatar.com','googleapis.com','stats.wp.com'];
 
     //set delay between pages
     const pause = {
