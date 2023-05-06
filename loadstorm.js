@@ -6,6 +6,7 @@ import {parseHTML} from "k6/html";
 import { rand, sample, wpMetrics, wpSitemap, responseWasCached, bypassPageCacheCookies, findNewAssets, findAssets, filterAssets, filterAssetsArray, createBatchArrayFromURLArray, removeAuthorCategoryLinks, debugObject, generateUsername, checkHttpsProtocol } from './lib/helpers.js'
 import { isOK, wpIsNotLogin } from './lib/checks.js'
 import _ from 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'
+import Metrics from './lib/metrics.js';
 
 
 export const options = {
@@ -96,14 +97,7 @@ export function setup () {
     return { urls: sitemap, siteurl: siteUrl, params: globalParams, username: usernameBase, usernameRange: usernameRange, password: password, wplogin: wpLogin, domainFilter: domainFilter, pause: pause }
 }
 
-//setup our metrics to track
-const errorRate = new Rate('errors')
-const errorCount = new Counter('errorCounter')
-const loginFailure = new Counter('loginFailureCounter')
-const loginResponseTime = new Trend('LoginResponseTime')
-const pageResponseTime = new Trend('PageResponseTime')
-const assetResponseTime = new Trend('AssetResponseTime')
-const responseCacheRate = new Rate('response_cached')
+const metrics = new Metrics()
 
 export default function (data) {
     //setup URL to test (must be passed from command line with -e SITE_URL=https://example.com)
@@ -120,30 +114,6 @@ export default function (data) {
         })
     }
 
-    //add any custom metrics based on the response
-    const addResponseMetrics = (response) => {
-        //check if response was cached (cloudflare, litespeed, generic proxy support)
-        responseCacheRate.add(responseWasCached(response))
-        //add successful request to error rate
-        errorRate.add(0)
-
-        //check if we have text/html content (page) or not (asset)
-        if('content-type' in response.headers && response.headers['content-type'].includes('text/html')){
-            pageResponseTime.add(response.timings.duration)
-        }else if('Content-Type' in response.headers && response.headers['Content-Type'].includes('text/html')){
-            pageResponseTime.add(response.timings.duration)
-        }else{
-            assetResponseTime.add(response.timings.duration)
-        }
-    }
-
-    //log all errors for normal requests
-    const addErrorMetrics = () => {
-        errorRate.add(1)
-        errorCount.add(1)
-        fail('status code was *not* 200')
-    }
-
 
     /*
         Load Homepage
@@ -152,13 +122,13 @@ export default function (data) {
         const response = http.get(siteUrl, data.params)
 
         check(response, isOK)
-            || addErrorMetrics()
+            || metrics.addErrorMetrics()
 
-        addResponseMetrics(response)
+        metrics.addResponseMetrics(response)
 
         //debugObject(response,'Homepage',true);
 
-        newAssets = findNewAssets(response,assets, data.domainFilter)
+        newAssets = findNewAssets(response,assets, data.domainFilter, metrics)
 
         //load new assets
         if(newAssets.length > 0){
@@ -170,9 +140,9 @@ export default function (data) {
 
             for (let key in pageAssetResponses) {
                 check(pageAssetResponses[key], isOK)
-                    || addErrorMetrics()
+                    || metrics.addErrorMetrics()
 
-                addResponseMetrics(pageAssetResponses[key])
+                metrics.addResponseMetrics(pageAssetResponses[key])
                 //debugObject(pageAssetResponses[key],'Home Asset response '+key, true)
             }
 
@@ -198,14 +168,14 @@ export default function (data) {
         const response = http.get(`${siteUrl}${data.wplogin}`, data.params)
 
         check(response, isOK)
-            || addErrorMetrics()
+            || metrics.addErrorMetrics()
 
-        addResponseMetrics(response)
+        metrics.addResponseMetrics(response)
 
         //debugObject(response,'Login Form Page',true)
 
         //load secondary assets
-        newAssets = findNewAssets(response,assets, data.domainFilter)
+        newAssets = findNewAssets(response,assets, data.domainFilter, metrics, metrics)
 
         //load new assets
         if(newAssets.length > 0){
@@ -217,9 +187,9 @@ export default function (data) {
 
             for (let key in pageAssetResponses) {
                 check(pageAssetResponses[key], isOK)
-                    || addErrorMetrics()
+                    || metrics.addErrorMetrics()
 
-                addResponseMetrics(pageAssetResponses[key])
+                metrics.addResponseMetrics(pageAssetResponses[key])
                 //debugObject(pageAssetResponses[key],'Login Asset response '+key, true)
             }
 
@@ -272,16 +242,16 @@ export default function (data) {
         debugObject(formResponse,'Login Form Response',true)
 
         check(formResponse, isOK)
-            || addErrorMetrics()
+            || metrics.addErrorMetrics()
         //make sure the login form doesn't appear again indicating a failure
         check(formResponse, wpIsNotLogin)
-            || ( loginFailure.add(1) && fail('page *has* login form'))
+            || ( metrics.loginFailure.add(1) && fail('page *has* login form'))
 
 
-        addResponseMetrics(formResponse)
-        loginResponseTime.add(formResponse.timings.duration)
+        metrics.addResponseMetrics(formResponse)
+        metrics.loginResponseTime.add(formResponse.timings.duration)
 
-        newAssets = findNewAssets(formResponse,assets, data.domainFilter)
+        newAssets = findNewAssets(formResponse,assets, data.domainFilter, metrics)
 
         //load new assets
         if(newAssets.length > 0){
@@ -293,9 +263,9 @@ export default function (data) {
 
             for (let key in pageAssetResponses) {
                 check(pageAssetResponses[key], isOK)
-                    || addErrorMetrics()
+                    || metrics.addErrorMetrics()
 
-                addResponseMetrics(pageAssetResponses[key])
+                metrics.addResponseMetrics(pageAssetResponses[key])
                 //debugObject(pageAssetResponses[key],'Logged in Asset response '+key, true)
             }
 
@@ -326,13 +296,13 @@ export default function (data) {
             //load the page and check the response and log metrics
             let response = http.get(url, data.params)
             check(response, isOK)
-                || addErrorMetrics()
-            addResponseMetrics(response)
+                || metrics.addErrorMetrics()
+            metrics.addResponseMetrics(response)
 
             debugObject(response,'Page '+pageCounter,true)
 
             //load all secondary assets
-            newAssets = findNewAssets(response,assets, data.domainFilter)
+            newAssets = findNewAssets(response,assets, data.domainFilter, metrics)
 
             //if we have new assets, requests them
             if(newAssets.length > 0){
@@ -345,9 +315,9 @@ export default function (data) {
 
                 for (let key in pageAssetResponses) {
                     check(pageAssetResponses[key], isOK)
-                        || addErrorMetrics()
+                        || metrics.addErrorMetrics()
 
-                    addResponseMetrics(pageAssetResponses[key])
+                    metrics.addResponseMetrics(pageAssetResponses[key])
                     //debugObject(pageAssetResponses[key],'Page Asset response '+key,true)
                 }
 

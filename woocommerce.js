@@ -1,12 +1,31 @@
 import http from 'k6/http'
 import { check, group, fail, sleep } from 'k6'
-import { Rate, Trend, Counter } from 'k6/metrics'
 import {parseHTML} from "k6/html";
 
-import { rand, sample, wpMetrics, wpSitemap, responseWasCached, bypassPageCacheCookies, findNewAssets, findAssets, filterAssets, filterAssetsArray, createBatchArrayFromURLArray, removeAuthorCategoryLinks, debugObject, generateUsername, checkHttpsProtocol, getProducts, getRefreshedFragments, getPage, getPageAssets, addToCart } from './lib/helpers.js'
+import { rand,
+        sample,
+        wpMetrics,
+        wpSitemap,
+        responseWasCached,
+        bypassPageCacheCookies,
+        findNewAssets,
+        findAssets,
+        filterAssets,
+        filterAssetsArray,
+        createBatchArrayFromURLArray,
+        removeAuthorCategoryLinks,
+        debugObject,
+        generateUsername,
+        checkHttpsProtocol,
+        getProducts,
+        getRefreshedFragments,
+        getPage,
+        getPageAssets,
+        addToCart
+    } from './lib/helpers.js'
 import { isOK, wcIsNotLogin } from './lib/checks.js'
 import _ from 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'
-
+import Metrics from './lib/metrics.js';
 
 export const options = {
     scenarios: {
@@ -142,56 +161,25 @@ export function setup () {
     return {  siteurl: siteUrl, params: globalParams, username: usernameBase, usernameRange: usernameRange, password: password, wplogin: wpLogin, domainFilter: domainFilter, pause: pause, assets: assets }
 }
 
-//setup our metrics to track
-const errorRate = new Rate('errors')
-const errorCount = new Counter('errorCounter')
-const loginFailure = new Counter('loginFailureCounter')
-const loginResponseTime = new Trend('LoginResponseTime')
-const cartFailure = new Counter('cartFailureCounter')
-const cartResponseTime = new Trend('CartResponseTime')
-const pageResponseTime = new Trend('PageResponseTime')
-const assetResponseTime = new Trend('AssetResponseTime')
-const responseCacheRate = new Rate('response_cached')
 
-//add any custom metrics based on the response
-const addResponseMetrics = (response) => {
-    //check if response was cached (cloudflare, litespeed, generic proxy support)
-    responseCacheRate.add(responseWasCached(response))
-    //add successful request to error rate
-    errorRate.add(0)
-
-    //check if we have text/html content (page) or not (asset)
-    if('content-type' in response.headers && response.headers['content-type'].includes('text/html')){
-        pageResponseTime.add(response.timings.duration)
-    }else if('Content-Type' in response.headers && response.headers['Content-Type'].includes('text/html')){
-        pageResponseTime.add(response.timings.duration)
-    }else{
-        assetResponseTime.add(response.timings.duration)
-    }
-}
-
-//log all errors for normal requests
-const addErrorMetrics = () => {
-    errorRate.add(1)
-    errorCount.add(1)
-    fail('status code was *not* 200')
-}
 
 export default function (data) {
     console.log("We shouldn't be here");
 }
 
+const metrics = new Metrics()
+
 export function homepage (data) {
     let response
     group('Load homepage', function () {
-        response = getPage(data.siteurl, data)
+        response = getPage(data.siteurl, data, metrics)
     })
 
     //get refreshed fragment
     const fragmentResponse = getRefreshedFragments(data.siteurl, data.params);
 
-    check(fragmentResponse, isOK) || addErrorMetrics()
-    addResponseMetrics(fragmentResponse)
+    check(fragmentResponse, isOK) || metrics.addErrorMetrics()
+    metrics.addResponseMetrics(fragmentResponse)
 
     //delay between page views to emulate real user browsing the site
     sleep(rand(data.pause.min, data.pause.max))
@@ -212,7 +200,7 @@ export function customer (data) {
 
     group('Login', function () {
         //get my account page to login
-        const response = getPage(`${data.siteurl}my-account/`,data)
+        const response = getPage(`${data.siteurl}my-account/`, data, metrics)
 
         //submit username / password on form
         let user = generateUsername(data.username, data.usernameRange.start, data.usernameRange.end)
@@ -228,27 +216,27 @@ export function customer (data) {
 
         //debugObject(formResponse,'FORM RESPONSE')
 
-        check(formResponse, isOK) || addErrorMetrics()
+        check(formResponse, isOK) || metrics.addErrorMetrics()
 
-        check(formResponse, wcIsNotLogin) || ( loginFailure.add(1) && fail('page *has* login form'))
+        check(formResponse, wcIsNotLogin) || ( metrics.loginFailure.add(1) && fail('page *has* login form'))
 
-        addResponseMetrics(formResponse)
-        loginResponseTime.add(formResponse.timings.duration)
+        metrics.addResponseMetrics(formResponse)
+        metrics.loginResponseTime.add(formResponse.timings.duration)
 
         //load login page assets
-        getPageAssets(formResponse,data)
+        getPageAssets(formResponse,data, metrics)
     })
 
     sleep(rand(data.pause.min, data.pause.max))
 
     group('Load orders', function () {
-        const response = getPage(`${data.siteurl}my-account/orders/`,data)
+        const response = getPage(`${data.siteurl}my-account/orders/`,data, metrics)
     })
 
     sleep(rand(data.pause.min, data.pause.max))
 
     group('View Account Details', function () {
-        const response = getPage(`${data.siteurl}my-account/edit-account/`,data)
+        const response = getPage(`${data.siteurl}my-account/edit-account/`,data, metrics)
         //debugObject(response,'View Account Details')
     })
 
@@ -269,7 +257,7 @@ export function browser (data) {
         for (let i = 0; i <5; i++) {
             const product = sample(products)
 
-            let pageResponse = getPage(product.link, data)
+            let pageResponse = getPage(product.link, data, metrics)
 
             //debugObject(pageResponse,'PAGE RESPONSE:')
 
@@ -291,21 +279,21 @@ export function buyer (data) {
 
     group('Add to cart', function () {
         //add product to cart
-        const cartResponse = addToCart(data.siteurl + '?wc-ajax=add_to_cart', product.sku, product.id, 1, data)
+        const cartResponse = addToCart(data.siteurl + '?wc-ajax=add_to_cart', product.sku, product.id, 1, data, metrics)
 
         sleep(rand(data.pause.min, data.pause.max))
     })
 
     group('Go to cart', function () {
         //go to cart
-        const goCartResponse = getPage(data.siteurl + 'cart/',data)
+        const goCartResponse = getPage(data.siteurl + 'cart/',data, metrics)
 
         sleep(rand(data.pause.min, data.pause.max))
     })
 
     group('Go to checkout', function () {
         //go to checkout
-        const checkoutResponse = getPage(data.siteurl + 'checkout/',data)
+        const checkoutResponse = getPage(data.siteurl + 'checkout/',data, metrics)
 
         sleep(rand(data.pause.min, data.pause.max))
     })
