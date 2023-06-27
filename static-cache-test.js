@@ -44,7 +44,17 @@ export default function () {
       "accept-encoding": "gzip, br, deflate",
     },
   };
-  let res = http.get('https://example.com', params)
+  //get siteurl from command line parameter (-e SITE_URL=https://example.com/)
+  let siteUrl = __ENV.SITE_URL
+  if(siteUrl == undefined) {
+      throw new Error("Missing SITE_URL variable")
+  }
+  //make sure we have trailing slash on the url
+  const lastChar = siteUrl.substr(-1);
+  if (lastChar != '/') {
+     siteUrl = siteUrl + '/';
+  }
+  let res = http.get(siteUrl, params)
 
   errorRate.add(res.status >= 400)
 
