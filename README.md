@@ -19,12 +19,14 @@ To execute cloud tests:
 
 ```k6 cloud script.js```
 
-You may need to append options for the loadstorm.js and woocommerce.js. Specifically passing in the SITE_URL. This applies to cloud and local tests.
+You mill need to append options for all the scripts. Specifically passing in the SITE_URL. This applies to cloud and local tests.
 
 ```k6 cloud script.js -e SITE_URL=https://example.com```
 
 
 ## static-cache-test.js 
+
+Please note: static-cache-test.js requires SITE_URL environmental variable
 
 This is the test used in [WordPress Hosting Performance Benchmarks](https://wphostingbenchmarks.com/) to see how well full page caching handles load. It is designed to scale from 1 - N concurrent users hammering a single page. This uses k6 Cloud to distribute load across 10 geographical zones.
 
