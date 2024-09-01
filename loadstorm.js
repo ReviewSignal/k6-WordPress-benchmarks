@@ -10,24 +10,25 @@ import Metrics from './lib/metrics.js';
 
 
 export const options = {
-    vus: 1,
-    duration: '60s',
-    /*
+    //userAgent: 'OrderlyApe/1.0',
+    //vus: 1,
+    //duration: '60s',
+    
     // vus, duration - can be replaced with stages
     // the following mimics old Load Storm test
     // it ramps up to target over 20 minutes
     // then holds at peak (target) for 10 minutes
     stages: [
-        { duration: '20m', target: 1000 }, // simulate ramp-up of traffic from 1 to 1000 users over 20 minutes.
-        { duration: '10m', target: 1000 }, // stay at max load for 10 minutes
+        { duration: '20m', target: 20 }, // simulate ramp-up of traffic from 1 to 20 users over 20 minutes.
+        { duration: '10m', target: 20 }, // stay at max load for 10 minutes
     ],
-    */
-    ext: {
+    
+    /*ext: {
         //for running k6.io cloud tests
         loadimpact: {
             projectID: 123456789,//put your project ID for k6 here
             name: "loadstorm test" //test name, tests with the same name group together
-            /*
+            
             //Optional Geo-Distribution of load test for cloud execution
             distribution: {
                 Virginia: { loadZone: 'amazon:us:ashburn', percent: 10 },
@@ -41,18 +42,63 @@ export const options = {
                 Singapore: { loadZone: 'amazon:sg:singapore', percent: 10 },
                 Brazil: { loadZone: 'amazon:br:sao paulo', percent: 10 },
             },
-            */
+            
         }
-    }
+    }*/
 }
 
 //setup executes once at the start and passes data to the main function (default) which a VUser executes
 export function setup () {
-    //get siteurl from command line parameter
-    let siteUrl = __ENV.SITE_URL
+    //get siteurl from command line parameter (TARGET)
+    let siteUrl = __ENV.TARGET
     if(siteUrl == undefined) {
-        throw new Error("Missing SITE_URL variable")
+        throw new Error("Missing TARGET variable")
     }
+
+    //get password from command line parameter (WPPASSWORD)
+    let password = __ENV.WPPASSWORD
+    if(password == undefined) {
+        //set a default password instead or error out
+        //password = 'password';//default
+        //or throw an error
+        throw new Error("Missing WPPASSWORD variable")
+    }
+
+    //get usernameBase from command line parameter (WPUSERNAME)
+    let usernameBase = __ENV.WPUSERNAME
+    if(usernameBase == undefined) {
+        //set a default username base instead or error out
+        //usernameBase = 'testuser';//default
+        //or throw an error
+        throw new Error("Missing WPUSERNAME variable")
+    }
+
+    //get username range start from command line parameter (WPUSERNAMERANGESTART)
+    let usernameRangeStart = __ENV.WPUSERNAMERANGESTART
+    if(usernameRangeStart == undefined) {
+        //set a default username range start instead or error out
+        //usernameRangeStart = 1;//default
+        //or throw an error
+        throw new Error("Missing WPUSERNAMERANGESTART variable")
+    }
+
+    //get username range end from command line parameter (WPUSERNAMERANGEEND)
+    let usernameRangeEnd = __ENV.WPUSERNAMERANGEEND
+    if(usernameRangeEnd == undefined) {
+        //set a default username range end instead or error out
+        //usernameRangeEnd = 5;//default
+        //or throw an error
+        throw new Error("Missing WPUSERNAMERANGEEND variable")
+    }
+
+    //username range is appended to username base if it exists. randomly choosing a number to append within the range to usernameBase
+    const usernameRange = {
+                            start: parseInt(usernameRangeStart),
+                            end: parseInt(usernameRangeEnd),
+                          }
+
+
+
     //make sure we have trailing slash on the url
     const lastChar = siteUrl.substr(-1);
     if (lastChar != '/') {
@@ -76,16 +122,10 @@ export function setup () {
         jar: {jar},
     };
 
-    const usernameBase = 'testuser';
-    //username range is appended to username base if it exists. randomly choosing a number to append within the range to usernameBase
-    const usernameRange = {
-                            start: 1,
-                            end: 5,
-                          }
-    const password = 'password';
-
+    //in case the wp-login isn't in the default location
     const wpLogin = 'wp-login.php';
 
+    //filter out domains we don't want to load assets from
     const domainFilter = ['gravatar.com','googleapis.com','stats.wp.com'];
 
     //set delay between pages
