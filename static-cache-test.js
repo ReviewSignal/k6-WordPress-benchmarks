@@ -44,10 +44,10 @@ export default function () {
       "accept-encoding": "gzip, br, deflate",
     },
   };
-  //get siteurl from command line parameter (-e SITE_URL=https://example.com/)
-  let siteUrl = __ENV.SITE_URL
+  //get siteurl from command line parameter (-e TARGET=https://example.com/)
+  let siteUrl = __ENV.TARGET
   if(siteUrl == undefined) {
-      throw new Error("Missing SITE_URL variable")
+      throw new Error("Missing TARGET variable")
   }
   //make sure we have trailing slash on the url
   const lastChar = siteUrl.substr(-1);
