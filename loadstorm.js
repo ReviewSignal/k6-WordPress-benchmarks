@@ -295,8 +295,8 @@ export default function (data) {
             customParams
 
         )
-        debugObject(customParams,'Custom Login Params')
-        debugObject(formResponse,'Login Form Response',true)
+        //debugObject(customParams,'Custom Login Params')
+        //debugObject(formResponse,'Login Form Response',true)
 
         check(formResponse, isOK)
             || metrics.addErrorMetrics()
