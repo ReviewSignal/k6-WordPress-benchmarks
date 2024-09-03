@@ -11,16 +11,18 @@ import Metrics from './lib/metrics.js';
 
 export const options = {
     //userAgent: 'OrderlyApe/1.0',
-    //vus: 1,
+    // VUSERS comes from environmental variable or defaults to 1 here and in stages
+    //vus: parseInt(__ENV.VUSERS) || 1
     //duration: '60s',
     
     // vus, duration - can be replaced with stages
     // the following mimics old Load Storm test
     // it ramps up to target over 20 minutes
     // then holds at peak (target) for 10 minutes
+
     stages: [
-        { duration: '20m', target: 20 }, // simulate ramp-up of traffic from 1 to 20 users over 20 minutes.
-        { duration: '10m', target: 20 }, // stay at max load for 10 minutes
+        { duration: '20m', target: parseInt(__ENV.VUSERS) || 1 }, // simulate ramp-up of traffic from 1 to vusers over 20 minutes.
+        { duration: '10m', target: parseInt(__ENV.VUSERS) || 1 }, // stay at max vusers for 10 minutes
     ],
     
     /*ext: {
@@ -122,17 +124,32 @@ export function setup () {
         jar: {jar},
     };
 
-    //in case the wp-login isn't in the default location
-    const wpLogin = 'wp-login.php';
-
-    //filter out domains we don't want to load assets from
-    const domainFilter = ['gravatar.com','googleapis.com','stats.wp.com'];
-
-    //set delay between pages
-    const pause = {
-        min: 5,
-        max: 10,
+    //setup wp-login.php url from WPLOGIN command line parameter to override default wp-login.php
+    let wpLogin = __ENV.WPLOGIN
+    if(wpLogin == undefined) {
+        //defaults to wp-login.php
+        wpLogin = 'wp-login.php';
+        //or throw an error if you want to require it
+        //throw new Error("Missing WPLOGIN variable")
     }
+
+    //setup domainFilter from command line parameter (DOMAINFILTER) passed in as a comma separated list
+    let domainFilter = __ENV.DOMAINFILTER
+    if(domainFilter == undefined) {
+        //set a default domain filter instead or error out
+        domainFilter = ['gravatar.com,googleapis.com,stats.wp.com'];//default
+        //or throw an error
+        //throw new Error("Missing DOMAINFILTER variable")
+    } else {
+        domainFilter = domainFilter.split(',');
+    }
+
+    // Set delay between pages. Read min and max pause values from environment variables, with fallback defaults
+    const pause = {
+        min: parseFloat(__ENV.MINPAUSE) || 5, // Use MIN_PAUSE environment variable or default to 5
+        max: parseFloat(__ENV.MAXPAUSE) || 10, // Use MAX_PAUSE environment variable or default to 10
+    };
+
 
     return { urls: sitemap, siteurl: siteUrl, params: globalParams, username: usernameBase, usernameRange: usernameRange, password: password, wplogin: wpLogin, domainFilter: domainFilter, pause: pause }
 }
