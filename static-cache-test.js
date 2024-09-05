@@ -16,11 +16,11 @@ let errorRate = new Rate('error_rate')
 export let options = {
   batch: 1,
   throw: true,
-  stages: [
-    { duration: '15m', target: 1000 },
+  stages: [//default is 15 minutes and 1000 VUsers
+    { duration: __ENV.DURATION || '15m', target: parseInt(__ENV.VUSERS) || 1000 },
   ],
   ext: {
-    loadimpact: {
+    loadimpact: {//For distributing load in k6 cloud
       distribution: {
         Virginia: { loadZone: 'amazon:us:ashburn', percent: 10 },
         London: { loadZone: 'amazon:gb:london', percent: 10 },
@@ -38,9 +38,26 @@ export let options = {
 }
 
 export default function () {
+    //get custom header from command line parameter (CUSTOMHEADERNAME)
+    let customHeaderName = __ENV.CUSTOMHEADERNAME
+    if(customHeaderName == undefined) {
+        //set a default CustomHeaderName instead or error out
+        customHeaderName = 'X-CustomHeader';//default
+        //or throw an error if we absolutely need a custom header name
+        //throw new Error("Missing CUSTOMHEADERNAME variable")
+    }
+
+    //get custom header value from command line parameter (CUSTOMHEADERVALUE)
+    let customHeaderValue = __ENV.CUSTOMHEADERVALUE
+    if(customHeaderValue == undefined) {
+        //set a default CustomHeaderValue instead or error out
+        customHeaderValue = '1';//default
+        //or throw an error if we absolutely need a custom header value
+        //throw new Error("Missing CUSTOMHEADERVALUE variable")
+    }
   let params = {
     headers: { 
-      'X-CustomHeader': '1',
+      [customHeaderName]: customHeaderValue,
       "accept-encoding": "gzip, br, deflate",
     },
   };
