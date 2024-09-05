@@ -115,10 +115,28 @@ export function setup () {
     //setup cookie jar to use for VUser
     const jar = new http.CookieJar()
 
+    //get custom header from command line parameter (CUSTOMHEADERNAME)
+    let customHeaderName = __ENV.CUSTOMHEADERNAME
+    if(customHeaderName == undefined) {
+        //set a default CustomHeaderName instead or error out
+        customHeaderName = 'X-CustomHeader';//default
+        //or throw an error if we absolutely need a custom header name
+        //throw new Error("Missing CUSTOMHEADERNAME variable")
+    }
+
+    //get custom header value from command line parameter (CUSTOMHEADERVALUE)
+    let customHeaderValue = __ENV.CUSTOMHEADERVALUE
+    if(customHeaderValue == undefined) {
+        //set a default CustomHeaderValue instead or error out
+        customHeaderValue = '1';//default
+        //or throw an error if we absolutely need a custom header value
+        //throw new Error("Missing CUSTOMHEADERVALUE variable")
+    }
+
     //setup parameters to be sent with every request, eg. custom header and cookie jar
     const globalParams = {
         headers: { 
-            'X-CustomHeader': '1',
+            [customHeaderName]: customHeaderValue,
             "accept-encoding": "gzip, br, deflate",
         },
         jar: {jar},
