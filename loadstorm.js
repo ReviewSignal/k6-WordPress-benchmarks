@@ -2,18 +2,45 @@ import http from 'k6/http'
 import { check, group, fail, sleep } from 'k6'
 import { Rate, Trend, Counter } from 'k6/metrics'
 import {parseHTML} from "k6/html";
-
+import { setupEnvironment } from './lib/env.js';
 import { rand, sample, wpMetrics, wpSitemap, responseWasCached, bypassPageCacheCookies, findNewAssets, findAssets, filterAssets, filterAssetsArray, createBatchArrayFromURLArray, removeAuthorCategoryLinks, debugObject, generateUsername, checkHttpsProtocol } from './lib/helpers.js'
 import { isOK, wpIsNotLogin } from './lib/checks.js'
 import _ from 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'
 import Metrics from './lib/metrics.js';
 
+//Override default values in setupEnvironment here
+const defaultValues = {
+    customHeaderName: 'X-OrderlyApe',
+  };
+const {
+    siteUrl,
+    password,
+    usernameBase,
+    usernameRange,
+    customHeaderName,
+    customHeaderValue,
+    wpLogin,
+    domainFilter,
+    pause,
+    vusers,
+    duration
+} = setupEnvironment([
+    'siteUrl',
+    'password',
+    'usernameBase',
+    'usernameRange',
+    'customHeader',
+    'wpLogin',
+    'domainFilter',
+    'pause',
+    'vusers',
+    'duration'
+], defaultValues);
 
 export const options = {
     //userAgent: 'OrderlyApe/1.0',
-    // VUSERS comes from environmental variable or defaults to 1 here and in stages
-    //vus: parseInt(__ENV.VUSERS) || 1
-    //duration: '60s',
+    //vus: vusers,
+    //duration: duration,
     
     // vus, duration - can be replaced with stages
     // the following mimics old Load Storm test
@@ -21,8 +48,8 @@ export const options = {
     // then holds at peak (target) for 10 minutes
 
     stages: [
-        { duration: '20m', target: parseInt(__ENV.VUSERS) || 1 }, // simulate ramp-up of traffic from 1 to vusers over 20 minutes.
-        { duration: '10m', target: parseInt(__ENV.VUSERS) || 1 }, // stay at max vusers for 10 minutes
+        { duration: '20m', target: vusers }, // simulate ramp-up of traffic from 1 to vusers over 20 minutes.
+        { duration: '10m', target: vusers }, // stay at max vusers for 10 minutes
     ],
     
     /*ext: {
@@ -51,61 +78,7 @@ export const options = {
 
 //setup executes once at the start and passes data to the main function (default) which a VUser executes
 export function setup () {
-    //get siteurl from command line parameter (TARGET)
-    let siteUrl = __ENV.TARGET
-    if(siteUrl == undefined) {
-        throw new Error("Missing TARGET variable")
-    }
 
-    //get password from command line parameter (WPPASSWORD)
-    let password = __ENV.WPPASSWORD
-    if(password == undefined) {
-        //set a default password instead or error out
-        //password = 'password';//default
-        //or throw an error
-        throw new Error("Missing WPPASSWORD variable")
-    }
-
-    //get usernameBase from command line parameter (WPUSERNAME)
-    let usernameBase = __ENV.WPUSERNAME
-    if(usernameBase == undefined) {
-        //set a default username base instead or error out
-        //usernameBase = 'testuser';//default
-        //or throw an error
-        throw new Error("Missing WPUSERNAME variable")
-    }
-
-    //get username range start from command line parameter (WPUSERNAMERANGESTART)
-    let usernameRangeStart = __ENV.WPUSERNAMERANGESTART
-    if(usernameRangeStart == undefined) {
-        //set a default username range start instead or error out
-        //usernameRangeStart = 1;//default
-        //or throw an error
-        throw new Error("Missing WPUSERNAMERANGESTART variable")
-    }
-
-    //get username range end from command line parameter (WPUSERNAMERANGEEND)
-    let usernameRangeEnd = __ENV.WPUSERNAMERANGEEND
-    if(usernameRangeEnd == undefined) {
-        //set a default username range end instead or error out
-        //usernameRangeEnd = 5;//default
-        //or throw an error
-        throw new Error("Missing WPUSERNAMERANGEEND variable")
-    }
-
-    //username range is appended to username base if it exists. randomly choosing a number to append within the range to usernameBase
-    const usernameRange = {
-                            start: parseInt(usernameRangeStart),
-                            end: parseInt(usernameRangeEnd),
-                          }
-
-
-
-    //make sure we have trailing slash on the url
-    const lastChar = siteUrl.substr(-1);
-    if (lastChar != '/') {
-       siteUrl = siteUrl + '/';
-    }
 
     //get sitemap of the site to browse
     let sitemap = wpSitemap(`${siteUrl}wp-sitemap.xml`)
@@ -115,24 +88,6 @@ export function setup () {
     //setup cookie jar to use for VUser
     const jar = new http.CookieJar()
 
-    //get custom header from command line parameter (CUSTOMHEADERNAME)
-    let customHeaderName = __ENV.CUSTOMHEADERNAME
-    if(customHeaderName == undefined) {
-        //set a default CustomHeaderName instead or error out
-        customHeaderName = 'X-CustomHeader';//default
-        //or throw an error if we absolutely need a custom header name
-        //throw new Error("Missing CUSTOMHEADERNAME variable")
-    }
-
-    //get custom header value from command line parameter (CUSTOMHEADERVALUE)
-    let customHeaderValue = __ENV.CUSTOMHEADERVALUE
-    if(customHeaderValue == undefined) {
-        //set a default CustomHeaderValue instead or error out
-        customHeaderValue = '1';//default
-        //or throw an error if we absolutely need a custom header value
-        //throw new Error("Missing CUSTOMHEADERVALUE variable")
-    }
-
     //setup parameters to be sent with every request, eg. custom header and cookie jar
     const globalParams = {
         headers: { 
@@ -140,32 +95,6 @@ export function setup () {
             "accept-encoding": "gzip, br, deflate",
         },
         jar: {jar},
-    };
-
-    //setup wp-login.php url from WPLOGIN command line parameter to override default wp-login.php
-    let wpLogin = __ENV.WPLOGIN
-    if(wpLogin == undefined) {
-        //defaults to wp-login.php
-        wpLogin = 'wp-login.php';
-        //or throw an error if you want to require it
-        //throw new Error("Missing WPLOGIN variable")
-    }
-
-    //setup domainFilter from command line parameter (DOMAINFILTER) passed in as a comma separated list
-    let domainFilter = __ENV.DOMAINFILTER
-    if(domainFilter == undefined) {
-        //set a default domain filter instead or error out
-        domainFilter = ['gravatar.com,googleapis.com,stats.wp.com'];//default
-        //or throw an error
-        //throw new Error("Missing DOMAINFILTER variable")
-    } else {
-        domainFilter = domainFilter.split(',');
-    }
-
-    // Set delay between pages. Read min and max pause values from environment variables, with fallback defaults
-    const pause = {
-        min: parseFloat(__ENV.MINPAUSE) || 5, // Use MIN_PAUSE environment variable or default to 5
-        max: parseFloat(__ENV.MAXPAUSE) || 10, // Use MAX_PAUSE environment variable or default to 10
     };
 
 

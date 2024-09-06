@@ -8,6 +8,25 @@
 import { sleep } from 'k6'
 import { Rate } from 'k6/metrics'
 import http from 'k6/http'
+import { setupEnvironment } from './lib/env.js'
+
+//Override default values in setupEnvironment here
+const defaultValues = {
+  vusers: 1000,
+  duration: '15m'
+};
+const {
+  siteUrl,
+  customHeaderName,
+  customHeaderValue,
+  vusers,
+  duration
+} = setupEnvironment([
+  'siteUrl',
+  'customHeader',
+  'vusers',
+  'duration'
+], defaultValues);
 
 // let's collect all errors in one metric
 let errorRate = new Rate('error_rate')
@@ -16,8 +35,8 @@ let errorRate = new Rate('error_rate')
 export let options = {
   batch: 1,
   throw: true,
-  stages: [//default is 15 minutes and 1000 VUsers
-    { duration: __ENV.DURATION || '15m', target: parseInt(__ENV.VUSERS) || 1000 },
+  stages: [
+    { duration: duration, target: vusers },
   ],
   ext: {
     loadimpact: {//For distributing load in k6 cloud
@@ -38,39 +57,12 @@ export let options = {
 }
 
 export default function () {
-    //get custom header from command line parameter (CUSTOMHEADERNAME)
-    let customHeaderName = __ENV.CUSTOMHEADERNAME
-    if(customHeaderName == undefined) {
-        //set a default CustomHeaderName instead or error out
-        customHeaderName = 'X-CustomHeader';//default
-        //or throw an error if we absolutely need a custom header name
-        //throw new Error("Missing CUSTOMHEADERNAME variable")
-    }
-
-    //get custom header value from command line parameter (CUSTOMHEADERVALUE)
-    let customHeaderValue = __ENV.CUSTOMHEADERVALUE
-    if(customHeaderValue == undefined) {
-        //set a default CustomHeaderValue instead or error out
-        customHeaderValue = '1';//default
-        //or throw an error if we absolutely need a custom header value
-        //throw new Error("Missing CUSTOMHEADERVALUE variable")
-    }
   let params = {
     headers: { 
       [customHeaderName]: customHeaderValue,
       "accept-encoding": "gzip, br, deflate",
     },
   };
-  //get siteurl from command line parameter (-e TARGET=https://example.com/)
-  let siteUrl = __ENV.TARGET
-  if(siteUrl == undefined) {
-      throw new Error("Missing TARGET variable")
-  }
-  //make sure we have trailing slash on the url
-  const lastChar = siteUrl.substr(-1);
-  if (lastChar != '/') {
-     siteUrl = siteUrl + '/';
-  }
   let res = http.get(siteUrl, params)
 
   errorRate.add(res.status >= 400)
