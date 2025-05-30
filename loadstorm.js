@@ -2,32 +2,62 @@ import http from 'k6/http'
 import { check, group, fail, sleep } from 'k6'
 import { Rate, Trend, Counter } from 'k6/metrics'
 import {parseHTML} from "k6/html";
-
+import { setupEnvironment } from './lib/env.js';
 import { rand, sample, wpMetrics, wpSitemap, responseWasCached, bypassPageCacheCookies, findNewAssets, findAssets, filterAssets, filterAssetsArray, createBatchArrayFromURLArray, removeAuthorCategoryLinks, debugObject, generateUsername, checkHttpsProtocol } from './lib/helpers.js'
 import { isOK, wpIsNotLogin } from './lib/checks.js'
 import _ from 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'
 import Metrics from './lib/metrics.js';
 
+//Override default values in setupEnvironment here
+const defaultValues = {
+    customHeaderName: 'X-OrderlyApe',
+  };
+const {
+    siteUrl,
+    password,
+    usernameBase,
+    usernameRange,
+    customHeaderName,
+    customHeaderValue,
+    wpLogin,
+    domainFilter,
+    pause,
+    vusers,
+    duration
+} = setupEnvironment([
+    'siteUrl',
+    'password',
+    'usernameBase',
+    'usernameRange',
+    'customHeader',
+    'wpLogin',
+    'domainFilter',
+    'pause',
+    'vusers',
+    'duration'
+], defaultValues);
 
 export const options = {
-    vus: 1,
-    duration: '60s',
-    /*
+    //userAgent: 'OrderlyApe/1.0',
+    //vus: vusers,
+    //duration: duration,
+    
     // vus, duration - can be replaced with stages
     // the following mimics old Load Storm test
     // it ramps up to target over 20 minutes
     // then holds at peak (target) for 10 minutes
+
     stages: [
-        { duration: '20m', target: 1000 }, // simulate ramp-up of traffic from 1 to 1000 users over 20 minutes.
-        { duration: '10m', target: 1000 }, // stay at max load for 10 minutes
+        { duration: '20m', target: vusers }, // simulate ramp-up of traffic from 1 to vusers over 20 minutes.
+        { duration: '10m', target: vusers }, // stay at max vusers for 10 minutes
     ],
-    */
-    ext: {
+    
+    /*ext: {
         //for running k6.io cloud tests
         loadimpact: {
             projectID: 123456789,//put your project ID for k6 here
             name: "loadstorm test" //test name, tests with the same name group together
-            /*
+            
             //Optional Geo-Distribution of load test for cloud execution
             distribution: {
                 Virginia: { loadZone: 'amazon:us:ashburn', percent: 10 },
@@ -41,23 +71,14 @@ export const options = {
                 Singapore: { loadZone: 'amazon:sg:singapore', percent: 10 },
                 Brazil: { loadZone: 'amazon:br:sao paulo', percent: 10 },
             },
-            */
+            
         }
-    }
+    }*/
 }
 
 //setup executes once at the start and passes data to the main function (default) which a VUser executes
 export function setup () {
-    //get siteurl from command line parameter
-    let siteUrl = __ENV.SITE_URL
-    if(siteUrl == undefined) {
-        throw new Error("Missing SITE_URL variable")
-    }
-    //make sure we have trailing slash on the url
-    const lastChar = siteUrl.substr(-1);
-    if (lastChar != '/') {
-       siteUrl = siteUrl + '/';
-    }
+
 
     //get sitemap of the site to browse
     let sitemap = wpSitemap(`${siteUrl}wp-sitemap.xml`)
@@ -70,29 +91,12 @@ export function setup () {
     //setup parameters to be sent with every request, eg. custom header and cookie jar
     const globalParams = {
         headers: { 
-            'X-CustomHeader': '1',
+            [customHeaderName]: customHeaderValue,
             "accept-encoding": "gzip, br, deflate",
         },
         jar: {jar},
     };
 
-    const usernameBase = 'testuser';
-    //username range is appended to username base if it exists. randomly choosing a number to append within the range to usernameBase
-    const usernameRange = {
-                            start: 1,
-                            end: 5,
-                          }
-    const password = 'password';
-
-    const wpLogin = 'wp-login.php';
-
-    const domainFilter = ['gravatar.com','googleapis.com','stats.wp.com'];
-
-    //set delay between pages
-    const pause = {
-        min: 5,
-        max: 10,
-    }
 
     return { urls: sitemap, siteurl: siteUrl, params: globalParams, username: usernameBase, usernameRange: usernameRange, password: password, wplogin: wpLogin, domainFilter: domainFilter, pause: pause }
 }
@@ -238,14 +242,21 @@ export default function (data) {
             customParams
 
         )
-        debugObject(customParams,'Custom Login Params')
-        debugObject(formResponse,'Login Form Response',true)
+        //debugObject(customParams,'Custom Login Params')
+        //debugObject(formResponse,'Login Form Response',true)
 
         check(formResponse, isOK)
             || metrics.addErrorMetrics()
         //make sure the login form doesn't appear again indicating a failure
         check(formResponse, wpIsNotLogin)
             || ( metrics.loginFailure.add(1) && fail('page *has* login form'))
+        //verify we are logged in as the correct user
+        check(formResponse, {
+            'logged in as correct user': (response) => {
+                return response.html().find('.display-name').first().text().trim() === user
+            }
+        }) || ( metrics.loginFailure.add(1) && fail('logged in as wrong user'))
+        
 
 
         metrics.addResponseMetrics(formResponse)

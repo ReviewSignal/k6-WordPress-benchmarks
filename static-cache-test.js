@@ -8,6 +8,25 @@
 import { sleep } from 'k6'
 import { Rate } from 'k6/metrics'
 import http from 'k6/http'
+import { setupEnvironment } from './lib/env.js'
+
+//Override default values in setupEnvironment here
+const defaultValues = {
+  vusers: 1000,
+  duration: '15m'
+};
+const {
+  siteUrl,
+  customHeaderName,
+  customHeaderValue,
+  vusers,
+  duration
+} = setupEnvironment([
+  'siteUrl',
+  'customHeader',
+  'vusers',
+  'duration'
+], defaultValues);
 
 // let's collect all errors in one metric
 let errorRate = new Rate('error_rate')
@@ -17,10 +36,10 @@ export let options = {
   batch: 1,
   throw: true,
   stages: [
-    { duration: '15m', target: 1000 },
+    { duration: duration, target: vusers },
   ],
   ext: {
-    loadimpact: {
+    loadimpact: {//For distributing load in k6 cloud
       distribution: {
         Virginia: { loadZone: 'amazon:us:ashburn', percent: 10 },
         London: { loadZone: 'amazon:gb:london', percent: 10 },
@@ -40,20 +59,10 @@ export let options = {
 export default function () {
   let params = {
     headers: { 
-      'X-CustomHeader': '1',
+      [customHeaderName]: customHeaderValue,
       "accept-encoding": "gzip, br, deflate",
     },
   };
-  //get siteurl from command line parameter (-e SITE_URL=https://example.com/)
-  let siteUrl = __ENV.SITE_URL
-  if(siteUrl == undefined) {
-      throw new Error("Missing SITE_URL variable")
-  }
-  //make sure we have trailing slash on the url
-  const lastChar = siteUrl.substr(-1);
-  if (lastChar != '/') {
-     siteUrl = siteUrl + '/';
-  }
   let res = http.get(siteUrl, params)
 
   errorRate.add(res.status >= 400)

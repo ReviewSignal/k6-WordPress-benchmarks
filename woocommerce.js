@@ -24,8 +24,46 @@ import { rand,
         addToCart
     } from './lib/helpers.js'
 import { isOK, wcIsNotLogin } from './lib/checks.js'
+import { setupEnvironment } from './lib/env.js';
 import _ from 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'
 import Metrics from './lib/metrics.js';
+
+//Override default values in setupEnvironment here
+const defaultValues = {
+    customHeaderName: 'X-OrderlyApe',
+    vusersHome: 500,
+    vusersBrowser: 200,
+    vusersBuyer: 200,
+    vusersCustomer: 100,
+  };
+const {
+    siteUrl,
+    password,
+    usernameBase,
+    usernameRange,
+    customHeaderName,
+    customHeaderValue,
+    wpLogin,
+    domainFilter,
+    pause,
+    vusersHome,
+    vusersBrowser,
+    vusersBuyer,
+    vusersCustomer
+} = setupEnvironment([
+    'siteUrl',
+    'password',
+    'usernameBase',
+    'usernameRange',
+    'customHeader',
+    'wpLogin',
+    'domainFilter',
+    'pause',
+    'vusersHome',
+    'vusersBrowser',
+    'vusersBuyer',
+    'vusersCustomer'
+], defaultValues);
 
 export const options = {
     scenarios: {
@@ -41,8 +79,8 @@ export const options = {
             tags: { wc_scenario: 'homepage' },
 
             stages: [
-                { duration: '40m', target: 500 },//ramp up to 500
-                { duration: '20m', target: 500 },//stay at 500
+                { duration: '40m', target: vusersHome },//ramp up
+                { duration: '20m', target: vusersHome },//stay
             ],
         },
         browser_scenario: {
@@ -56,8 +94,8 @@ export const options = {
             tags: { wc_scenario: 'browser' },
 
             stages: [
-                { duration: '40m', target: 200 },
-                { duration: '20m', target: 200 },
+                { duration: '40m', target: vusersBrowser },
+                { duration: '20m', target: vusersBrowser },
             ],
         },
         buyer_scenario: {
@@ -71,8 +109,8 @@ export const options = {
             tags: { wc_scenario: 'buyer' },
 
             stages: [
-                { duration: '40m', target: 200 },
-                { duration: '20m', target: 200 },
+                { duration: '40m', target: vusersBuyer },
+                { duration: '20m', target: vusersBuyer },
             ],
         },
         customer_scenario: {
@@ -86,8 +124,8 @@ export const options = {
             tags: { wc_scenario: 'customer' },
 
             stages: [
-                { duration: '40m', target: 100 },
-                { duration: '20m', target: 100 },
+                { duration: '40m', target: vusersCustomer },
+                { duration: '20m', target: vusersCustomer },
             ],
         },
     },
@@ -115,16 +153,7 @@ export const options = {
 
 //setup executes once at the start and passes data to the main function (default) which a VUser executes
 export function setup () {
-    //get siteurl from command line parameter (-e SITE_URL=https://example.com/)
-    let siteUrl = __ENV.SITE_URL
-    if(siteUrl == undefined) {
-        throw new Error("Missing SITE_URL variable")
-    }
-    //make sure we have trailing slash on the url
-    const lastChar = siteUrl.substr(-1);
-    if (lastChar != '/') {
-       siteUrl = siteUrl + '/';
-    }
+
 
     //setup cookie jar to use for VUser
     const jar = new http.CookieJar()
@@ -132,29 +161,11 @@ export function setup () {
     //setup parameters to be sent with every request, eg. custom header and cookie jar
     const globalParams = {
         headers: { 
-            'CustomHeader': 'NotADDoS',
+            [customHeaderName]: customHeaderValue,
             "accept-encoding": "gzip, br, deflate",
         },
         jar: {jar},
     };
-
-    const usernameBase = 'username';
-    //username range is appended to username base if it exists. randomly choosing a number to append within the range to usernameBase
-    const usernameRange = {
-                            start: 10,
-                            end: 10010,
-                          }
-    const password = 'pass';//default
-
-    const wpLogin = 'wp-login.php';
-
-    const domainFilter = ['gravatar.com','wp.com','googleapis.com'];
-
-    //set delay between pages
-    const pause = {
-        min: 5,
-        max: 10,
-    }
 
     let assets = [] //track all static asset urls
 
