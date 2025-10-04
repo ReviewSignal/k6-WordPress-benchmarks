@@ -272,14 +272,20 @@ export default function (data) {
 
         const isCorrectUser = (response) => {
             const displayNameSelection = response.html().find('.display-name');
+            const usernameSelection = response.html().find('.username');
+
             const displayName = displayNameSelection.first().text().trim();
-            if (displayName !== user) {
-                const combinedDisplayNames = displayNameSelection.text().trim();
+            const usernameText = usernameSelection.first().text().trim();
+            const resolvedIdentity = displayName || usernameText;
+            const isMatch = resolvedIdentity === user;
+
+            if (!isMatch) {
                 console.log(
-                    `Login user mismatch for ${user}: expected "${user}" but found "${displayName}" (combined display-name text: "${combinedDisplayNames}", elements found: ${displayNameSelection.size()}, status: ${response.status}, url: ${response.url})`
+                    `Login user mismatch for ${user}: expected "${user}" but display-name="${displayName}" username="${usernameText}" (combined display-name text: "${displayNameSelection.text().trim()}", combined username text: "${usernameSelection.text().trim()}", display-name elements: ${displayNameSelection.size()}, username elements: ${usernameSelection.size()}, status: ${response.status}, url: ${response.url})`
                 );
             }
-            return displayName === user;
+
+            return isMatch;
         };
 
         //verify we are logged in as the correct user
