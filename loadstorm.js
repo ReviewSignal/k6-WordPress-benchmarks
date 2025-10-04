@@ -242,6 +242,13 @@ export default function (data) {
             customParams
 
         )
+        const loginErrorMessage = formResponse.html().find('#login_error').text().replace(/\s+/g, ' ').trim()
+        if (loginErrorMessage) {
+            console.log(`Login error (${user}): ${loginErrorMessage}`)
+        }
+        if (!wpIsNotLogin['page is not login'](formResponse)) {
+            console.log(`Login form still present for ${user}. Status: ${formResponse.status} URL: ${formResponse.url}`)
+        }
         //debugObject(customParams,'Custom Login Params')
         //debugObject(formResponse,'Login Form Response',true)
 
