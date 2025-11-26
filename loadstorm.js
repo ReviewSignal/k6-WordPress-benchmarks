@@ -226,7 +226,7 @@ export default function (data) {
 
         let user = generateUsername(data.username, data.usernameRange.start, data.usernameRange.end)
 
-        console.log('Username: ' + user)
+        //console.log('Username: ' + user)
 
         let formResponse = http.post(
             `${siteUrl}${data.wplogin}`,
