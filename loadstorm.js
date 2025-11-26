@@ -303,14 +303,14 @@ export default function (data) {
     let pageCounter = 1;
     data.urls.forEach(url => {
         group('page'+pageCounter, function () {
-            console.log("\r\n\r\nBrowsing page "+ pageCounter + ' | url: ' + url)
+            //console.log("\r\n\r\nBrowsing page "+ pageCounter + ' | url: ' + url)
             //load the page and check the response and log metrics
             let response = http.get(url, data.params)
             check(response, isOK)
                 || metrics.addErrorMetrics()
             metrics.addResponseMetrics(response)
 
-            debugObject(response,'Page '+pageCounter,true)
+            //debugObject(response,'Page '+pageCounter,true)
 
             //load all secondary assets
             newAssets = findNewAssets(response,assets, data.domainFilter, metrics)
