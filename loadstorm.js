@@ -269,11 +269,28 @@ export default function (data) {
         //make sure the login form doesn't appear again indicating a failure
         check(formResponse, wpIsNotLogin)
             || ( metrics.loginFailure.add(1) && fail('page *has* login form'))
+
+        const isCorrectUser = (response) => {
+            const displayNameSelection = response.html().find('.display-name');
+            const usernameSelection = response.html().find('.username');
+
+            const displayName = displayNameSelection.first().text().trim();
+            const usernameText = usernameSelection.first().text().trim();
+            const resolvedIdentity = displayName || usernameText;
+            const isMatch = resolvedIdentity === user;
+
+            if (!isMatch) {
+                console.log(
+                    `Login user mismatch for ${user}: expected "${user}" but display-name="${displayName}" username="${usernameText}" (combined display-name text: "${displayNameSelection.text().trim()}", combined username text: "${usernameSelection.text().trim()}", display-name elements: ${displayNameSelection.size()}, username elements: ${usernameSelection.size()}, status: ${response.status}, url: ${response.url})`
+                );
+            }
+
+            return isMatch;
+        };
+
         //verify we are logged in as the correct user
         check(formResponse, {
-            'logged in as correct user': (response) => {
-                return response.html().find('.display-name').first().text().trim() === user
-            }
+            'logged in as correct user': (response) => isCorrectUser(response),
         }) || ( metrics.loginFailure.add(1) && fail('logged in as wrong user'))
         
 
