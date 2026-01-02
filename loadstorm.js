@@ -5,7 +5,6 @@ import {parseHTML} from "k6/html";
 import { setupEnvironment } from './lib/env.js';
 import { rand, sample, wpMetrics, wpSitemap, responseWasCached, bypassPageCacheCookies, findNewAssets, findAssets, filterAssets, filterAssetsArray, createBatchArrayFromURLArray, removeAuthorCategoryLinks, debugObject, generateUsername, checkHttpsProtocol } from './lib/helpers.js'
 import { isOK, wpIsNotLogin } from './lib/checks.js'
-import _ from 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'
 import Metrics from './lib/metrics.js';
 
 //Override default values in setupEnvironment here
@@ -111,7 +110,7 @@ export default function (data) {
         data.params.jar = new http.CookieJar()
     }
 
-    let assets = [] //track all static asset urls
+    let assets = new Set() //track all static asset urls - Set provides O(1) lookups vs Array O(n)
     let newAssets = [] //used to track new assets we need to load before they are cached by the browser
     const pause = data.pause
 
@@ -155,8 +154,8 @@ export default function (data) {
                 //debugObject(pageAssetResponses[key],'Home Asset response '+key, true)
             }
 
-            //add new assets to our asset cache to make sure we don't load them again
-            assets = [...assets, ...newAssets]
+            //add new assets to our asset Set to make sure we don't load them again
+            newAssets.forEach(asset => assets.add(asset))
 
             //debugObject(assets,'Assets');
 
@@ -202,8 +201,8 @@ export default function (data) {
                 //debugObject(pageAssetResponses[key],'Login Asset response '+key, true)
             }
 
-            //add new assets to our asset cache to make sure we don't load them again
-            assets = [...assets, ...newAssets]
+            //add new assets to our asset Set to make sure we don't load them again
+            newAssets.forEach(asset => assets.add(asset))
 
             //debugObject(assets,'Assets');
 
@@ -221,19 +220,13 @@ export default function (data) {
 
         //add in our own extra headers for login
         const loginHeaders = {
-            headers: {
-                    'content-type': 'application/x-www-form-urlencoded',
-                    referer: `${siteUrl}${data.wplogin}`, //you must pass a referer, otherwise it breaks, doesn't matter what you send it seems though
-            }
+            'content-type': 'application/x-www-form-urlencoded',
+            referer: `${siteUrl}${data.wplogin}`, //you must pass a referer, otherwise it breaks, doesn't matter what you send it seems though
         }
         
         const customParams = {
             ...data.params,
-            headers: {
-                ...(data.params.headers || {}),
-                ...loginHeaders.headers,
-            },
-            jar: data.params.jar,
+            headers: { ...(data.params.headers || {}), ...loginHeaders }
         };
 
         let user = generateUsername(data.username, data.usernameRange.start, data.usernameRange.end)
@@ -299,8 +292,8 @@ export default function (data) {
                 //debugObject(pageAssetResponses[key],'Logged in Asset response '+key, true)
             }
 
-            //add new assets to our asset cache to make sure we don't load them again
-            assets = [...assets, ...newAssets]
+            //add new assets to our asset Set to make sure we don't load them again
+            newAssets.forEach(asset => assets.add(asset))
 
             //debugObject(assets,'Assets');
 
@@ -351,8 +344,8 @@ export default function (data) {
                     //debugObject(pageAssetResponses[key],'Page Asset response '+key,true)
                 }
 
-                //add new assets to our asset cache to make sure we don't load them again
-                assets = [...assets, ...newAssets]
+                //add new assets to our asset Set to make sure we don't load them again
+                newAssets.forEach(asset => assets.add(asset))
 
                 //debugObject(assets,'Assets')
 
