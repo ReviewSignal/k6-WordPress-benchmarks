@@ -105,6 +105,11 @@ const metrics = new Metrics()
 export default function (data) {
     //setup URL to test (must be passed from command line with -e SITE_URL=https://example.com)
     const siteUrl = data.siteurl
+
+    if (!data.params.jar || typeof data.params.jar.cookiesForURL !== 'function') {
+        data.params.jar = new http.CookieJar()
+    }
+
     let assets = new Set() //track all static asset urls - Set provides O(1) lookups vs Array O(n)
     let newAssets = [] //used to track new assets we need to load before they are cached by the browser
     const pause = data.pause
@@ -242,6 +247,13 @@ export default function (data) {
             customParams
 
         )
+        const loginErrorMessage = formResponse.html().find('#login_error').text().replace(/\s+/g, ' ').trim()
+        if (loginErrorMessage) {
+            console.log(`Login error (${user}): ${loginErrorMessage}`)
+        }
+        if (!wpIsNotLogin['page is not login'](formResponse)) {
+            console.log(`Login form still present for ${user}. Status: ${formResponse.status} URL: ${formResponse.url}`)
+        }
         //debugObject(customParams,'Custom Login Params')
         //debugObject(formResponse,'Login Form Response',true)
 
