@@ -265,7 +265,14 @@ export default function (data) {
         //verify we are logged in as the correct user
         check(formResponse, {
             'logged in as correct user': (response) => {
-                return response.html().find('.display-name').first().text().trim() === user
+                const doc = response.html();
+                const displayName = doc.find('.display-name').first().text().trim();
+                const identity = displayName || doc.find('.username').first().text().trim();
+
+                if (identity !== user) {
+                    console.log(`Login user mismatch for ${user}: expected "${user}" but found "${identity}"`);
+                }
+                return identity === user;
             }
         }) || ( metrics.loginFailure.add(1) && fail('logged in as wrong user'))
         
