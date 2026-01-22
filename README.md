@@ -120,6 +120,7 @@ By default it is set to 1 VUser which will run for the duration, iterating throu
 | `customHeaderName` | `CUSTOMHEADERNAME` | `X-OrderlyApe` | Name of the custom header to identify test traffic |
 | `customHeaderValue` | `CUSTOMHEADERVALUE` | `1` | Value of the custom header |
 | `wpLogin` | `WPLOGIN` | `wp-login.php` | WordPress login page path |
+| `wpSitemap` | `WPSITEMAP` | `wp-sitemap.xml` | WordPress sitemap path |
 | `domainFilter` | `DOMAINFILTER` | `gravatar.com,googleapis.com,stats.wp.com` | Comma-separated domains to exclude from asset loading |
 | `pause.min` | `MINPAUSE` | `5` | Minimum seconds to pause between page loads |
 | `pause.max` | `MAXPAUSE` | `10` | Maximum seconds to pause between page loads |
@@ -146,7 +147,7 @@ k6 run loadstorm.js -e TARGET=https://example.com -e WPUSERNAME=testuser -e WPPA
 ### How LoadStorm Works
 
 **Setup Process:**
-- Loads the WordPress sitemap (`wp-sitemap.xml`) to discover all pages. **Note**: wp-sitemap.xml won't show up if you hide the site from search engines and SEO plugins may create alternative sitemaps.
+- Loads the WordPress sitemap (default: `wp-sitemap.xml`, configurable via `WPSITEMAP`) to discover all pages. **Note**: wp-sitemap.xml won't show up if you hide the site from search engines and SEO plugins may create alternative sitemaps - use `WPSITEMAP` to specify an alternative path.
 - Filters out author and category links, focusing on posts and pages
 - Create user accounts following the pattern: `{usernameBase}{number}` (e.g., testuser1, testuser2, etc.)
 

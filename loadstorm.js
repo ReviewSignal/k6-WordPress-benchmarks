@@ -19,6 +19,7 @@ const {
     customHeaderName,
     customHeaderValue,
     wpLogin,
+    wpSitemap: wpSitemapPath,
     domainFilter,
     pause,
     vusers,
@@ -30,6 +31,7 @@ const {
     'usernameRange',
     'customHeader',
     'wpLogin',
+    'wpSitemap',
     'domainFilter',
     'pause',
     'vusers',
@@ -80,7 +82,7 @@ export function setup () {
 
 
     //get sitemap of the site to browse
-    let sitemap = wpSitemap(`${siteUrl}wp-sitemap.xml`)
+    let sitemap = wpSitemap(`${siteUrl}${wpSitemapPath}`)
     //filter Author / Category links leaving only posts/pages by default
     sitemap = removeAuthorCategoryLinks(sitemap.urls)
 
