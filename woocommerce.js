@@ -25,7 +25,6 @@ import { rand,
     } from './lib/helpers.js'
 import { isOK, wcIsNotLogin } from './lib/checks.js'
 import { setupEnvironment } from './lib/env.js';
-import _ from 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'
 import Metrics from './lib/metrics.js';
 
 //Override default values in setupEnvironment here
@@ -167,9 +166,7 @@ export function setup () {
         jar: {jar},
     };
 
-    let assets = [] //track all static asset urls
-
-    return {  siteurl: siteUrl, params: globalParams, username: usernameBase, usernameRange: usernameRange, password: password, wplogin: wpLogin, domainFilter: domainFilter, pause: pause, assets: assets }
+    return {  siteurl: siteUrl, params: globalParams, username: usernameBase, usernameRange: usernameRange, password: password, wplogin: wpLogin, domainFilter: domainFilter, pause: pause }
 }
 
 
@@ -180,24 +177,31 @@ export default function (data) {
 
 const metrics = new Metrics()
 
-export function homepage (data) {
+export function homepage (data, assets = null) {
+    // Initialize assets Set for this iteration (Sets don't survive k6's JSON serialization from setup)
+    if (!assets) {
+        assets = new Set()
+    }
+    const localData = { ...data, assets }
+
     let response
     group('Load homepage', function () {
-        response = getPage(data.siteurl, data, metrics)
+        response = getPage(localData.siteurl, localData, metrics)
     })
 
     //get refreshed fragment
-    const fragmentResponse = getRefreshedFragments(data.siteurl, data.params);
+    const fragmentResponse = getRefreshedFragments(localData.siteurl, localData.params);
 
     check(fragmentResponse, isOK) || metrics.addErrorMetrics()
     metrics.addResponseMetrics(fragmentResponse)
 
     //delay between page views to emulate real user browsing the site
-    sleep(rand(data.pause.min, data.pause.max))
+    sleep(rand(localData.pause.min, localData.pause.max))
     //in case you want to handle the responses generated
     return {
         homeResponse: response,
-        fragmentResponse: fragmentResponse
+        fragmentResponse: fragmentResponse,
+        assets: assets
     };
 
 }
@@ -207,20 +211,22 @@ export function homepage (data) {
  *  Homepage, Login, view orders, view account details
  */
 export function customer (data) {
-    let homeObj = homepage(data) //load homepage
+    const assets = new Set()
+    let homeObj = homepage(data, assets) //load homepage
+    const localData = { ...data, assets }
 
     group('Login', function () {
         //get my account page to login
-        const response = getPage(`${data.siteurl}my-account/`, data, metrics)
+        const response = getPage(`${localData.siteurl}my-account/`, localData, metrics)
 
         //submit username / password on form
-        let user = generateUsername(data.username, data.usernameRange.start, data.usernameRange.end)
+        let user = generateUsername(localData.username, localData.usernameRange.start, localData.usernameRange.end)
         const formResponse = response.submitForm({
             formSelector: 'form.woocommerce-form-login',
-            params: data.params,
+            params: localData.params,
             fields: {
                 username: user,
-                password: data.password,
+                password: localData.password,
                 rememberme: 'forever',
             },
         })
@@ -235,23 +241,23 @@ export function customer (data) {
         metrics.loginResponseTime.add(formResponse.timings.duration)
 
         //load login page assets
-        getPageAssets(formResponse,data, metrics)
+        getPageAssets(formResponse, localData, metrics)
     })
 
-    sleep(rand(data.pause.min, data.pause.max))
+    sleep(rand(localData.pause.min, localData.pause.max))
 
     group('Load orders', function () {
-        const response = getPage(`${data.siteurl}my-account/orders/`,data, metrics)
+        const response = getPage(`${localData.siteurl}my-account/orders/`, localData, metrics)
     })
 
-    sleep(rand(data.pause.min, data.pause.max))
+    sleep(rand(localData.pause.min, localData.pause.max))
 
     group('View Account Details', function () {
-        const response = getPage(`${data.siteurl}my-account/edit-account/`,data, metrics)
+        const response = getPage(`${localData.siteurl}my-account/edit-account/`, localData, metrics)
         //debugObject(response,'View Account Details')
     })
 
-    sleep(rand(data.pause.min, data.pause.max))
+    sleep(rand(localData.pause.min, localData.pause.max))
 }
 
 /*
@@ -259,7 +265,9 @@ export function customer (data) {
  *  Homepage, view five random products
  */
 export function browser (data) {
-    let homeObj = homepage(data) //load homepage
+    const assets = new Set()
+    let homeObj = homepage(data, assets) //load homepage
+    const localData = { ...data, assets }
 
     let products = getProducts(homeObj.homeResponse)
 
@@ -268,11 +276,11 @@ export function browser (data) {
         for (let i = 0; i <5; i++) {
             const product = sample(products)
 
-            let pageResponse = getPage(product.link, data, metrics)
+            let pageResponse = getPage(product.link, localData, metrics)
 
             //debugObject(pageResponse,'PAGE RESPONSE:')
 
-            sleep(rand(data.pause.min, data.pause.max))
+            sleep(rand(localData.pause.min, localData.pause.max))
         }
     })
 }
@@ -282,7 +290,9 @@ export function browser (data) {
  *  Homepage, add item to cart, to go cart, checkout
  */
 export function buyer (data) {
-    let homeObj = homepage(data) //load homepage
+    const assets = new Set()
+    let homeObj = homepage(data, assets) //load homepage
+    const localData = { ...data, assets }
 
     //choose random product to add to cart from homepage
     let products = getProducts(homeObj.homeResponse, true)
@@ -290,23 +300,23 @@ export function buyer (data) {
 
     group('Add to cart', function () {
         //add product to cart
-        const cartResponse = addToCart(data.siteurl + '?wc-ajax=add_to_cart', product.sku, product.id, 1, data, metrics)
+        const cartResponse = addToCart(localData.siteurl + '?wc-ajax=add_to_cart', product.sku, product.id, 1, localData, metrics)
 
-        sleep(rand(data.pause.min, data.pause.max))
+        sleep(rand(localData.pause.min, localData.pause.max))
     })
 
     group('Go to cart', function () {
         //go to cart
-        const goCartResponse = getPage(data.siteurl + 'cart/',data, metrics)
+        const goCartResponse = getPage(localData.siteurl + 'cart/', localData, metrics)
 
-        sleep(rand(data.pause.min, data.pause.max))
+        sleep(rand(localData.pause.min, localData.pause.max))
     })
 
     group('Go to checkout', function () {
         //go to checkout
-        const checkoutResponse = getPage(data.siteurl + 'checkout/',data, metrics)
+        const checkoutResponse = getPage(localData.siteurl + 'checkout/', localData, metrics)
 
-        sleep(rand(data.pause.min, data.pause.max))
+        sleep(rand(localData.pause.min, localData.pause.max))
     })
 
 }
