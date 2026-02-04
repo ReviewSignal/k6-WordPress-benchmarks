@@ -86,16 +86,13 @@ export function setup () {
     //filter Author / Category links leaving only posts/pages by default
     sitemap = removeAuthorCategoryLinks(sitemap.urls)
 
-    //setup cookie jar to use for VUser
-    const jar = new http.CookieJar()
-
-    //setup parameters to be sent with every request, eg. custom header and cookie jar
+    //setup parameters to be sent with every request, eg. custom header
+    //NOTE: cookie jar is created fresh per VUser in default() function
     const globalParams = {
         headers: { 
             [customHeaderName]: customHeaderValue,
             "accept-encoding": "gzip, br, deflate",
         },
-        jar: {jar},
     };
 
 
@@ -108,9 +105,8 @@ export default function (data) {
     //setup URL to test (must be passed from command line with -e SITE_URL=https://example.com)
     const siteUrl = data.siteurl
 
-    if (!data.params.jar || typeof data.params.jar.cookiesForURL !== 'function') {
-        data.params.jar = new http.CookieJar()
-    }
+    // Create a fresh CookieJar for each VUser iteration (no shared login state)
+    data.params.jar = new http.CookieJar()
 
     let assets = new Set() //track all static asset urls - Set provides O(1) lookups vs Array O(n)
     let newAssets = [] //used to track new assets we need to load before they are cached by the browser
