@@ -20,7 +20,8 @@ const {
   customHeaderName,
   customHeaderValue,
   vusers,
-  duration
+  duration,
+  userAgent
 } = setupEnvironment([
   'siteUrl',
   'customHeader',
@@ -33,6 +34,7 @@ let errorRate = new Rate('error_rate')
 
 // See https://k6.io/docs/using-k6/options
 export let options = {
+  ...(userAgent ? { userAgent } : {}),
   batch: 1,
   throw: true,
   stages: [
@@ -58,7 +60,7 @@ export let options = {
 
 export default function () {
   let params = {
-    headers: { 
+    headers: {
       [customHeaderName]: customHeaderValue,
       "accept-encoding": "gzip, br, deflate",
     },

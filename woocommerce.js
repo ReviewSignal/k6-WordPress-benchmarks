@@ -48,7 +48,8 @@ const {
     vusersHome,
     vusersBrowser,
     vusersBuyer,
-    vusersCustomer
+    vusersCustomer,
+    userAgent
 } = setupEnvironment([
     'siteUrl',
     'password',
@@ -65,6 +66,7 @@ const {
 ], defaultValues);
 
 export const options = {
+    ...(userAgent ? { userAgent } : {}),
     scenarios: {
         homepage_scenario: {
             // name of the executor to use

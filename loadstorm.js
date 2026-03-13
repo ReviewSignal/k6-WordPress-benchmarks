@@ -23,7 +23,8 @@ const {
     domainFilter,
     pause,
     vusers,
-    duration
+    duration,
+    userAgent
 } = setupEnvironment([
     'siteUrl',
     'password',
@@ -39,7 +40,7 @@ const {
 ], defaultValues);
 
 export const options = {
-    //userAgent: 'OrderlyApe/1.0',
+    ...(userAgent ? { userAgent } : {}),
     //vus: vusers,
     //duration: duration,
     
